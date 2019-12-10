@@ -9,9 +9,13 @@ import random
 # Fits data using logistic regression
 # Compares epistatic model with null model
 # Takes as input the id number of two snps and the data
-def score_epistasis(data, snps):
+def score_epistasis(data, snps, table):
     snp1 = snps[0]
     snp2 = snps[1]
+    # check if score already calculated
+    if (table[snp1][snp2] != None):
+        return table[snp1][snp2]
+
     # return least score if snps are the same
     ### UPDATE if scoring function changes
     if ( snp1 == snp2 ):
@@ -45,6 +49,8 @@ def score_epistasis(data, snps):
         else:
             chi_sq += (param - null_params[i])**2 
 
+    table[snp1][snp2]  = chi_sq / np.sum(np.absolute(null_params))
+    table[snp2][snp1]  = chi_sq / np.sum(np.absolute(null_params))
     return chi_sq / np.sum(np.absolute(null_params))
 '''
     # Recalculate log odds prevalence using non-epistatic parameters and epistatic params
@@ -117,28 +123,43 @@ def DESeeker(data, iterations, pop_size, order, num_snps, scaling_factor, cr_rat
     for i in range(pop_size):
         population.append(random.sample(range(num_snps), order))
 
+    # store table of scores to avoid recomputation
+    score_table = np.full((num_snps, num_snps), None)
+    
     # generations
     candidates = []
     for j in range(iterations):
-        print("iteration num: ")
+        print("iteration num: ", j)
         best_vector = population[0]
-        best_score = score_epistasis(data, best_vector)
+        best_score = score_epistasis(data, best_vector, score_table)
         next_gen = []
         for i in range(pop_size):
             mutated_vector = mutation(population[i], population, num_snps, scaling_factor)
-            crossover_vector = crossover(population[i], mutated_vector, cr_rate)
-            selected_vector = selection(data, population[i], crossover_vector)
+            crossover_vector = crossover(population[i], mutated_vector, num_snps, cr_rate)
+            selected_vector = selection(data, population[i], crossover_vector, score_table)
             next_gen.append(selected_vector)
-            if (score_epistasis(data, selected_vector) > score_epistasis(data, best_vector)):
-                best_vector = selected_vector
-                best_score = score_epistasis(data, best_vector)
+            if (score_epistasis(data, selected_vector, score_table) > score_epistasis(data, best_vector, score_table)):
+                #best_vector = selected_vector
+                #best_score = score_epistasis(data, best_vector, score_table)
+                best_vector, best_score = hill_climb(selected_vector, population, pop_size, num_snps, cr_rate, score_table)
         if (best_vector not in candidates):
             candidates.append(best_vector)
-        print(best_vector)
+        print(best_vector, best_score, np.count_nonzero(score_table == None))
         population = next_gen
     return candidates
 
+# return the new best vector and its score after hill climbing
+def hill_climb(best_vector, population, pop_size, num_snps, cr_probability, table):
+    current_best = best_vector.copy()
+    for i in range(pop_size):
+        random_vector = random.choice(population)
+        cross = crossover(current_best, random_vector, num_snps, cr_probability)
+        if (score_epistasis(data, cross, table) > score_epistasis(data, current_best, table)):
+            current_best = cross
+    return current_best, score_epistasis(data, current_best, table)
 
+#def mutation(target, population, num_snps, scaling_factor):
+    
 def mutation(target, population, num_snps, scaling_factor):
     # select three random vectors from population
     vector_nums = random.sample(range(len(population)), 3)
@@ -152,45 +173,71 @@ def mutation(target, population, num_snps, scaling_factor):
 
     for i in range(len(v1)):
         v1[i] = v1[i] + int(round(v_diff[i]))
+    # fix out of bounds
+
     for i in range(len(v1)):
-        if (math.fabs(v1[i]) >= num_snps):
-            v1[i] = int(v1[i] / 2)
         if (v1[i] < 0):
             v1[i] *= -1
+        if (v1[i] >= num_snps):
+            v1[i] = random.randint(0, num_snps-1)
+        
     return v1
 
-def crossover(target, mutant, cr_probability):
+def crossover(target, mutant, num_snps, cr_probability):
     cross = []
     for i in range(len(target)):
         if ( random.random() < cr_probability ):
             cross.append(mutant[i])
         else:
             cross.append(target[i])
-
     return cross
 
-def selection(data, target, crossed):
-    if ( score_epistasis(data, crossed) > score_epistasis(data, target) ):
+def selection(data, target, crossed, table):
+    if ( score_epistasis(data, crossed, table) > score_epistasis(data, target, table) ):
         return crossed
     else:
         return target
     
     
-    
+
 # Single test
-data_file = open("model2/model2_EDM-1_001.txt")
+data_file = open("model2/model2_EDM-1_002.txt")
 reader = csv.reader(data_file, delimiter="\t")
 next(reader)
 data = [] # in 2D array form; each row is a different patient
 for line in reader:
     data.append(list(map(int, line))) # convert to ints
 
-#print(DESeeker(data, 25, 25, 2, 100, 0.9, 0.8)) # set N and M to 500 and 500 later
+print(DESeeker(data, 25, 250, 2, 100, 0.9, 0.8)) # set N and M to 500 and 500 later
 
+'''
+for file_num in range(1, 101):
+    data_file = open("model2/model2_EDM-1_%03d.txt" %file_num)
+    reader = csv.reader(data_file, delimiter="\t")
+    next(reader)
+    data = [] # in 2D array form; each row is a different patient
+    for line in reader:
+        data.append(list(map(int, line))) # convert to ints
 
-print(score_epistasis(data, [28, 10]))
-print(score_epistasis(data, [98, 99]))
+    print("File " + str(file_num) + ": " , DESeeker(data, 25, 250, 2, 100, 0.9, 0.8)) # set N and M to 500 and 500 later
 
+dummy_table = np.full((100, 100), None)
+print(dummy_table)
+print(score_epistasis(data, [28, 10], dummy_table))
+print(score_epistasis(data, [98, 99], dummy_table))
+
+candidates = {}
+for snp1 in range(0, 100):
+    for snp2 in range(snp1+1, 100):
+        score = score_epistasis(data, [snp1, snp2], dummy_table)
+        if ( len(candidates) < 5 ):
+            candidates[(snp1, snp2)] = score
+        elif ( score > min(candidates.values()) ):
+            del candidates[min(candidates, key=candidates.get)]
+            candidates[(snp1, snp2)] = score
+            
+print(candidates)
+'''
 '''
 for file_num in range(1, 101):
     data_file = open("model2/model2_EDM-1_%03d.txt" %file_num)
@@ -214,5 +261,5 @@ for file_num in range(1, 101):
     print("File " + str(file_num) + ": " + str(candidates))
     print("Max" + str(max(candidates, key=candidates.get)))
 
+'''    
 
-'''
