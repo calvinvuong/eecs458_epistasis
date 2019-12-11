@@ -131,11 +131,41 @@ def RandomSeeker(data, iterations, order, num_snps):
             best_vector = random_vector
 
 #    print("Score", score_epistasis(data, best_vector, score_table))
-    return best_vector
+    return best_vector, np.count_nonzero(score_table == None)
 
+
+for model in [100, 200, 300, 400, 500]:
+    power = 0.0
+    percentage_explored = 0.0
+    total_time = 0.0
+    num_snps = model
+    num_files = 101
+    if ( model >= 400 ):
+        num_files = 51
+    total_time = 0.0
+    for file_num in range(1, num_files):
+        data_file = open("model%d/model%d_EDM-1_%03d.txt" %(model, model, file_num))
+        reader = csv.reader(data_file, delimiter="\t")
+        next(reader)
+        data = [] # in 2D array form; each row is a different patient
+        for line in reader:
+            data.append(list(map(int, line))) # convert to ints
+
+        start = time.time()
+        
+        result, pairs_explored = RandomSeeker(data, 5000 * int(num_snps / 100), 2, num_snps)
+        if (result == [num_snps-1, num_snps-2] or result == [num_snps-2, num_snps-1]):
+            power += 1
+        end = time.time()
+        total_time += (end - start)
+        percentage_explored += (pairs_explored / (num_snps**2))
+    power = power / (num_files - 1)
+    average_time = total_time / (num_files - 1)
+    percentage_explored = percentage_explored / (num_files - 1)
+    print("%%d SNPs\tpower: %d\ttime: %d\t, percentage explored: %d" %(model, power, average_time, percentag_explored))
 
 # Single test
-
+'''
 data_file = open("model200/model200_EDM-1_002.txt")
 reader = csv.reader(data_file, delimiter="\t")
 next(reader)
@@ -147,7 +177,7 @@ start = time.time()
 print(RandomSeeker(data, 5000 * int(num_snps / 100), 2, num_snps))
 print(time.time() - start)
 #print(DESeeker(data, 25, 250, 2, 100, 0.9, 0.8)) # set N and M to 500 and 500 later
-
+'''
 # Multiple tests
 '''
 power = 0.0
@@ -220,4 +250,3 @@ for file_num in range(1, 101):
     print("Max" + str(max(candidates, key=candidates.get)))
 
 '''    
-

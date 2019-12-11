@@ -132,7 +132,7 @@ def DESeeker(data, iterations, pop_size, order, num_snps, scaling_factor, cr_rat
     # generations
     candidates = []
     for j in range(iterations):
-        print("iteration num: ", j)
+        #print("iteration num: ", j)
         best_vector = population[0]
         best_score = score_epistasis(data, best_vector[:order], score_table)
         next_gen = []
@@ -147,9 +147,9 @@ def DESeeker(data, iterations, pop_size, order, num_snps, scaling_factor, cr_rat
                 best_vector, best_score = hill_climb(selected_vector, population, pop_size, num_snps, cr_rate, score_table)
         if (best_vector[:-2] not in candidates):
             candidates.append(best_vector[:-2])
-        print(best_vector, best_score, np.count_nonzero(score_table == None))
+        #print(best_vector, best_score, np.count_nonzero(score_table == None))
         population = next_gen
-    return candidates
+    return candidates, np.count_nonzero(score_table == None)
 
 # return the new best vector and its score after hill climbing
 def hill_climb(best_vector, population, pop_size, num_snps, cr_probability, table):
@@ -256,8 +256,38 @@ for snp1 in range(0, 2000):
 print(candidates)
 '''
 
-# Single test
 
+for model in [100, 200, 300, 400, 500]:
+    power = 0.0
+    percentage_explored = 0.0
+    total_time = 0.0
+    num_snps = model
+    num_files = 101
+    if ( model >= 400 ):
+        num_files = 51
+    total_time = 0.0
+    for file_num in range(1, num_files):
+        data_file = open("model%d/model%d_EDM-1_%03d.txt" %(model, model, file_num))
+        reader = csv.reader(data_file, delimiter="\t")
+        next(reader)
+        data = [] # in 2D array form; each row is a different patient
+        for line in reader:
+            data.append(list(map(int, line))) # convert to ints
+
+        start = time.time()
+        candidate_vectors, pairs_explored = DESeeker(data, 25 * int(num_snps / 100), 500 * int(num_snps / 100), 2, num_snps, 0.9, 0.8)
+        if ([num_snps-1, num_snps-2] in candidate_vectors or [num_snps-2, num_snps-1] in candidate_vectors):
+            power += 1
+        end = time.time()
+        total_time += (end - start)
+        percentage_explored += (pairs_explored / (num_snps**2))
+    power = power / (num_files - 1)
+    average_time = total_time / (num_files - 1)
+    percentage_explored = percentage_explored / (num_files - 1)
+    print("%%d SNPs\tpower: %d\ttime: %d\t, percentage explored: %d" %(model, power, average_time, percentag_explored))
+print("Experiment complete.")
+'''
+# Single test
 data_file = open("model100/model100_EDM-1_002.txt")
 reader = csv.reader(data_file, delimiter="\t")
 next(reader)
@@ -272,6 +302,7 @@ start = time.time()
 #print(RandomSeeker(data, 1000, 2, 100))
 print(DESeeker(data, 25 * int(num_snps / 100), 500 * int(num_snps / 100), 2, num_snps, 0.9, 0.8)) 
 print( (time.time() - start))
+'''
 '''
 # Multiple tests
 power = 0.0
