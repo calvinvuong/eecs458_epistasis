@@ -5,7 +5,7 @@ import math
 import random
 import time
 
-# Algorithm as detailed in the paper
+# Altered mutation() function, crossover() function unchanged
 
 # Returns the chi squared score testing for epistatic relationship between snp1 and snp2
 # Fits data using logistic regression
@@ -176,10 +176,10 @@ def RandomSeeker(data, iterations, order, num_snps):
     return best_vector
 
 # testing; select random mutations 
-def mutation2(target, population, num_snps, scaling_factor):
+def mutation(target, population, num_snps, scaling_factor):
     return random.sample(range(num_snps), 2)
     
-def mutation(target, population, num_snps, scaling_factor):
+def mutation2(target, population, num_snps, scaling_factor):
     scaling_factor = target[-2]
     # select three random vectors from population
     vector_nums = random.sample(range(len(population)), 3)
@@ -258,13 +258,13 @@ print(candidates)
 
 # Single test
 
-data_file = open("model100/model100_EDM-1_002.txt")
+data_file = open("model200/model200_EDM-1_013.txt")
 reader = csv.reader(data_file, delimiter="\t")
 next(reader)
 data = [] # in 2D array form; each row is a different patient
 for line in reader:
     data.append(list(map(int, line))) # convert to ints
-num_snps = 100
+num_snps = 200
 dummy_table = np.full((num_snps, num_snps), None)
 
 #print(score_epistasis(data, [num_snps-1, num_snps-2], dummy_table))

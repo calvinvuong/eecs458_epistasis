@@ -5,7 +5,7 @@ import math
 import random
 import time
 
-# Algorithm as detailed in the paper
+# Altered mutation() and crossover()
 
 # Returns the chi squared score testing for epistatic relationship between snp1 and snp2
 # Fits data using logistic regression
@@ -155,7 +155,7 @@ def DESeeker(data, iterations, pop_size, order, num_snps, scaling_factor, cr_rat
 def hill_climb(best_vector, population, pop_size, num_snps, cr_probability, table):
     current_best = best_vector.copy()
     for i in range(pop_size):
-        random_vector = random.choice(population)
+        random_vector = random.choice(population)[:-2]
         cross = crossover(current_best, random_vector, num_snps, cr_probability)
         if (score_epistasis(data, cross, table) > score_epistasis(data, current_best, table)):
             current_best = cross
@@ -176,10 +176,10 @@ def RandomSeeker(data, iterations, order, num_snps):
     return best_vector
 
 # testing; select random mutations 
-def mutation2(target, population, num_snps, scaling_factor):
+def mutation(target, population, num_snps, scaling_factor):
     return random.sample(range(num_snps), 2)
     
-def mutation(target, population, num_snps, scaling_factor):
+def mutation2(target, population, num_snps, scaling_factor):
     scaling_factor = target[-2]
     # select three random vectors from population
     vector_nums = random.sample(range(len(population)), 3)
@@ -203,14 +203,9 @@ def mutation(target, population, num_snps, scaling_factor):
         
     return v1
 
+# Just return mutant vector with parameters attached
 def crossover(target, mutant, num_snps, cr_probability):
-    cross = []
-    cr_probability = target[-1]
-    for i in range(len(target) - 2):
-        if ( random.random() < cr_probability ):
-            cross.append(mutant[i])
-        else:
-            cross.append(target[i])
+    cross = mutant.copy()
     # append the parameters
     cross.append(target[-2])
     cross.append(target[-1])
@@ -265,7 +260,6 @@ data = [] # in 2D array form; each row is a different patient
 for line in reader:
     data.append(list(map(int, line))) # convert to ints
 num_snps = 100
-dummy_table = np.full((num_snps, num_snps), None)
 
 #print(score_epistasis(data, [num_snps-1, num_snps-2], dummy_table))
 start = time.time()
